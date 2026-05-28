@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>今天吃什么 - 一次性注册码生成器</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(180deg, #fff9f5 0%, #fff1e9 100%);
+      color: #513f3b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    .card {
+      width: 100%;
+      max-width: 560px;
+      background: rgba(255,255,255,.96);
+      border: 1px solid #f5e2d8;
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 18px 42px rgba(243, 155, 120, .16);
+    }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    p { color: #8f756d; line-height: 1.7; }
+    button {
+      width: 100%;
+      height: 48px;
+      border: 0;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #f68b6b 0%, #f5b36a 100%);
+      color: white;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 12px 0;
+    }
+    textarea {
+      width: 100%;
+      min-height: 180px;
+      border: 1px solid #f5e2d8;
+      border-radius: 18px;
+      padding: 16px;
+      box-sizing: border-box;
+      font-size: 16px;
+      line-height: 1.8;
+      color: #513f3b;
+      background: #fffaf7;
+    }
+    .row { display:flex; gap:12px; align-items:center; }
+    input {
+      width: 90px;
+      height: 42px;
+      border-radius: 12px;
+      border: 1px solid #f5e2d8;
+      padding: 0 12px;
+      font-size: 16px;
+    }
+    .tip { font-size: 13px; color: #a68d86; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🍲 一次性注册码生成器</h1>
+    <p>本页面可离线使用。生成的注册码发给家人，每个注册码只能成功绑定一个微信号一次。</p>
+
+    <div class="row">
+      <label>数量</label>
+      <input id="count" type="number" min="1" max="100" value="1" />
+    </div>
+
+    <button onclick="generate()">生成注册码</button>
+    <textarea id="output" readonly placeholder="生成结果会显示在这里"></textarea>
+    <button onclick="copyCodes()">复制注册码</button>
+
+    <p class="tip">请不要把这个生成器发给别人。它只适合你自己在本机保存使用。</p>
+  </div>
+
+  <script>
+    const REG_CODE_SECRET = "JTCMS-REG-_0hHEkrX0ttmz52WvZEgoL10GlHaA5ShtQ7FROye4KQ";
+    const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+    function randomNonce(length = 10) {
+      const array = new Uint8Array(length);
+      crypto.getRandomValues(array);
+      let out = "";
+      for (let i = 0; i < array.length; i++) {
+        out += ALPHABET[array[i] % ALPHABET.length];
+      }
+      return out;
+    }
+
+    async function hmacSha256Hex(secret, message) {
+      const enc = new TextEncoder();
+      const key = await crypto.subtle.importKey(
+        "raw",
+        enc.encode(secret),
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"]
+      );
+      const sig = await crypto.subtle.sign("HMAC", key, enc.encode(message));
+      return Array.from(new Uint8Array(sig))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("")
+        .toUpperCase();
+    }
+
+    async function makeCode() {
+      const nonce = randomNonce();
+      const sig = (await hmacSha256Hex(REG_CODE_SECRET, nonce)).slice(0, 12);
+      return `JQ-${nonce}-${sig}`;
+    }
+
+    async function generate() {
+      const count = Math.max(1, Math.min(100, Number(document.getElementById("count").value || 1)));
+      const list = [];
+      for (let i = 0; i < count; i++) {
+        list.push(await makeCode());
+      }
+      document.getElementById("output").value = list.join("\n");
+    }
+
+    async function copyCodes() {
+      const text = document.getElementById("output").value;
+      if (!text) return alert("请先生成注册码");
+      await navigator.clipboard.writeText(text);
+      alert("已复制");
+    }
+  </script>
+</body>
+</html>
